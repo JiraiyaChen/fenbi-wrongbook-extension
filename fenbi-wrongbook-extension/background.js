@@ -129,9 +129,28 @@ function extractWrongQuestionsAndOpenTab() {
     title.textContent = title.textContent + ' - 错题重练';
   }
 
+  doc.documentElement.classList.add('wrongbook-font-plus');
+
   // 注入最小功能脚本和样式，尽量不改变原页面视觉
   const helperStyle = doc.createElement('style');
   helperStyle.textContent = `
+    .wrongbook-font-plus .content,
+    .wrongbook-font-plus .content p,
+    .wrongbook-font-plus .content span,
+    .wrongbook-font-plus .input-text,
+    .wrongbook-font-plus .title-index,
+    .wrongbook-font-plus .title-type-name,
+    .wrongbook-font-plus .overall-item-title,
+    .wrongbook-font-plus .overall-item-value,
+    .wrongbook-font-plus .wrongbook-toolbar,
+    .wrongbook-font-plus .wrongbook-toggle-btn,
+    .wrongbook-font-plus .copy-content-btn,
+    .wrongbook-font-plus .wrongbook-card-toggle,
+    .wrongbook-font-plus .wrongbook-answer-card-header,
+    .wrongbook-font-plus .wrongbook-answer-chip,
+    .wrongbook-font-plus .wrongbook-draft-btn {
+      font-size: calc(1em + 2px) !important;
+    }
     .wrongbook-toolbar {
       margin: 20px 38px 0;
       padding: 12px 16px;
@@ -219,25 +238,43 @@ function extractWrongQuestionsAndOpenTab() {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px;
+      padding: 10px;
       border-radius: 10px;
-      border: 1px solid var(--color-border-section, #dfe3ec);
-      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid #b8c2d6;
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(4px);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
     }
     .wrongbook-draft-btn {
       border: 1px solid var(--color-border-section, #dfe3ec);
       border-radius: 6px;
       background: var(--color-bg-section, #ffffff);
       color: var(--color-text-primary, #1f2430);
-      font-size: 12px;
-      height: 28px;
-      padding: 0 10px;
+      font-size: 13px;
+      font-weight: 700;
+      height: 32px;
+      padding: 0 12px;
       cursor: pointer;
     }
     .wrongbook-draft-btn:hover {
-      border-color: var(--color-text-blue, #2e62f5);
-      color: var(--color-text-blue, #2e62f5);
+      filter: brightness(0.98);
+    }
+    .wrongbook-draft-btn[data-action="clear"] {
+      border-color: #efc161;
+      background: #fff4d6;
+      color: #8a5a00;
+    }
+    .wrongbook-draft-btn[data-action="clear"]:hover {
+      background: #ffe8b0;
+    }
+    .wrongbook-draft-btn[data-action="close"] {
+      border-color: #2e62f5;
+      background: #2e62f5;
+      color: #ffffff;
+    }
+    .wrongbook-draft-btn[data-action="close"]:hover {
+      background: #1f52df;
+      border-color: #1f52df;
     }
     .wrongbook-draft-canvas {
       position: fixed;
@@ -553,6 +590,12 @@ function extractWrongQuestionsAndOpenTab() {
       window.addEventListener("resize", function () {
         if (panel.classList.contains("open")) {
           resizeCanvas();
+        }
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && panel.classList.contains("open")) {
+          panel.classList.remove("open");
         }
       });
     })();
