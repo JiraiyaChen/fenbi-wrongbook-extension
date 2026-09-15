@@ -91,10 +91,16 @@ function extractWrongQuestionsAndOpenTab() {
       toggleBtn.textContent = '展开答案和解析';
       toggleBtn.setAttribute('data-expanded', 'false');
 
+      const copyBtn = doc.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'copy-content-btn';
+      copyBtn.textContent = '复制题目内容';
+
       solutionChoiceContainer.insertBefore(
         toggleBtn,
         solutionChoiceContainer.firstChild
       );
+      solutionChoiceContainer.insertBefore(copyBtn, toggleBtn.nextSibling);
     }
   });
 
@@ -639,16 +645,34 @@ function extractWrongQuestionsAndOpenTab() {
       }
     });
 
-    function escapePlainText(text) {
-      return text.replace(/\\r?\\n\\s*\\r?\\n+/g, "\\n\\n").replace(/[ \\t]+/g, " ").trim();
+    function getReadableText(node) {
+      if (!node) {
+        return "";
+      }
+      return (node.innerText || node.textContent || "").replace(/\u00a0/g, " ");
+    }
+
+    function normalizeMultilineText(text) {
+      return text
+        .replace(/\\r\\n?/g, "\\n")
+        .split("\\n")
+        .map((line) => line.replace(/[ \\t\u3000]+/g, " ").trim())
+        .join("\\n")
+        .replace(/\\n{3,}/g, "\\n\\n")
+        .trim();
+    }
+
+    function normalizeSingleLineText(text) {
+      return normalizeMultilineText(text).replace(/\\n+/g, " ").trim();
     }
 
     function buildQuestionCopyText(root) {
-      const stem = root.querySelector("app-question-choice .question-choice-container app-format-html")?.textContent?.trim() || "";
+      const stemNode = root.querySelector("app-question-choice .question-choice-container app-format-html");
+      const stem = normalizeMultilineText(getReadableText(stemNode));
       const optionNodes = Array.from(root.querySelectorAll("app-choice-radio .choice-radio-label"));
       const options = optionNodes.map((label) => {
-        const key = label.querySelector(".input-radio")?.textContent?.trim() || "";
-        const value = label.querySelector(".input-text")?.textContent?.trim() || "";
+        const key = normalizeSingleLineText(getReadableText(label.querySelector(".input-radio")));
+        const value = normalizeSingleLineText(getReadableText(label.querySelector(".input-text")));
         return (key && value) ? (key + ". " + value) : "";
       }).filter(Boolean);
 
@@ -659,7 +683,7 @@ function extractWrongQuestionsAndOpenTab() {
       if (options.length) {
         blocks.push(options.join("\\n"));
       }
-      return escapePlainText(blocks.join("\\n\\n"));
+      return normalizeMultilineText(blocks.join("\\n\\n"));
     }
 
     async function copyText(text) {
