@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "粉笔错题重练提取器",
+  "version": "1.0.0",
+  "description": "从粉笔试卷页面提取错题并生成可重练页面，答案解析支持点击展开。",
+  "permissions": ["activeTab", "scripting", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "提取错题并打开新标签"
+  }
+}
