@@ -85,6 +85,10 @@ function extractWrongQuestionsAndOpenTab() {
       '.solution-choice-container'
     );
     if (solutionChoiceContainer) {
+      solutionChoiceContainer
+        .querySelectorAll('.wrongbook-toggle-btn, .copy-content-btn')
+        .forEach((btn) => btn.remove());
+
       const toggleBtn = doc.createElement('button');
       toggleBtn.type = 'button';
       toggleBtn.className = 'wrongbook-toggle-btn';
