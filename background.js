@@ -653,21 +653,22 @@ function extractWrongQuestionsAndOpenTab() {
       if (!node) {
         return "";
       }
-      return (node.innerText || node.textContent || "").replace(/\u00a0/g, " ");
+      return node.innerText || node.textContent || "";
     }
 
     function normalizeMultilineText(text) {
       return text
         .replace(/\\r\\n?/g, "\\n")
+        .replace(/\u00a0/g, " ")
         .split("\\n")
-        .map((line) => line.replace(/[ \\t\u3000]+/g, " ").trim())
+        .map((line) => line.replace(/[ \\t\u3000]+$/g, ""))
         .join("\\n")
         .replace(/\\n{3,}/g, "\\n\\n")
-        .trim();
+        .replace(/^\\n+|\\n+$/g, "");
     }
 
     function normalizeSingleLineText(text) {
-      return normalizeMultilineText(text).replace(/\\n+/g, " ").trim();
+      return normalizeMultilineText(text).replace(/\\n+/g, " ").replace(/^\s+|\s+$/g, "");
     }
 
     function buildQuestionCopyText(root) {
@@ -687,7 +688,7 @@ function extractWrongQuestionsAndOpenTab() {
       if (options.length) {
         blocks.push(options.join("\\n"));
       }
-      return normalizeMultilineText(blocks.join("\\n\\n"));
+      return normalizeMultilineText(blocks.join("\\n"));
     }
 
     async function copyText(text) {
