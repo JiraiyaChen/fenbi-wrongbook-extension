@@ -533,6 +533,40 @@ function extractWrongQuestionsAndOpenTab() {
       }
 
       let drawing = false;
+      let scrollLocked = false;
+
+      function preventWheel(evt) {
+        evt.preventDefault();
+      }
+
+      function lockScroll() {
+        if (scrollLocked) {
+          return;
+        }
+        scrollLocked = true;
+        window.addEventListener("wheel", preventWheel, { passive: false, capture: true });
+        window.addEventListener("touchmove", preventWheel, { passive: false, capture: true });
+      }
+
+      function unlockScroll() {
+        if (!scrollLocked) {
+          return;
+        }
+        scrollLocked = false;
+        window.removeEventListener("wheel", preventWheel, { capture: true });
+        window.removeEventListener("touchmove", preventWheel, { capture: true });
+      }
+
+      function openDraftPanel() {
+        resizeCanvas();
+        panel.classList.add("open");
+        lockScroll();
+      }
+
+      function closeDraftPanel() {
+        panel.classList.remove("open");
+        unlockScroll();
+      }
 
       function startDraw(evt) {
         evt.preventDefault();
@@ -578,8 +612,8 @@ function extractWrongQuestionsAndOpenTab() {
 
         const draftTool = target.closest(".draft.tool");
         if (draftTool) {
-          resizeCanvas();
-          panel.classList.add("open");
+          event.preventDefault();
+          openDraftPanel();
           return;
         }
 
@@ -592,7 +626,7 @@ function extractWrongQuestionsAndOpenTab() {
             ctx.restore();
           }
           if (action === "close") {
-            panel.classList.remove("open");
+            closeDraftPanel();
           }
         }
       });
@@ -605,7 +639,7 @@ function extractWrongQuestionsAndOpenTab() {
 
       document.addEventListener("keydown", function (event) {
         if (event.key === "Escape" && panel.classList.contains("open")) {
-          panel.classList.remove("open");
+          closeDraftPanel();
         }
       });
     })();
