@@ -31,10 +31,98 @@ function extractWrongQuestionsAndOpenTab() {
   }
   base.setAttribute('href', location.href);
 
+  // 在删除非错题前，先按模块统计全部题目的全站正确率，并标记每道题所属模块
+  const targetRateModules = ['言语理解与表达', '判断推理', '资料分析'];
+  const allKnownModules = [
+    '政治理论',
+    '常识判断',
+    '言语理解与表达',
+    '数量关系',
+    '判断推理',
+    '资料分析',
+  ];
+
+  const moduleHeadings = [];
+  const headingCandidates = doc.querySelectorAll('body *');
+  for (let i = 0; i < headingCandidates.length; i += 1) {
+    const el = headingCandidates[i];
+    if (
+      el.closest('app-ti') ||
+      el.closest('app-answer-card') ||
+      el.closest('app-report-overall')
+    ) {
+      continue;
+    }
+    const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text || text.length > 40) {
+      continue;
+    }
+    let matchedModule = '';
+    for (let j = 0; j < allKnownModules.length; j += 1) {
+      if (text.indexOf(allKnownModules[j]) !== -1) {
+        matchedModule = allKnownModules[j];
+        break;
+      }
+    }
+    if (!matchedModule) {
+      continue;
+    }
+    let hasChildMatch = false;
+    const children = el.children;
+    for (let k = 0; k < children.length; k += 1) {
+      const childText = (children[k].textContent || '').replace(/\s+/g, ' ').trim();
+      if (childText.indexOf(matchedModule) !== -1) {
+        hasChildMatch = true;
+        break;
+      }
+    }
+    if (!hasChildMatch) {
+      moduleHeadings.push({ el, moduleName: matchedModule });
+    }
+  }
+
+  const allQuestionRateStats = {};
+  targetRateModules.forEach((m) => {
+    allQuestionRateStats[m] = { ge80: 0, mid60to80: 0, lt60: 0, total: 0 };
+  });
+
   // 仅保留错题对应的 app-ti
   const allQuestions = Array.from(
     doc.querySelectorAll('app-ti.question-multiple')
   );
+
+  allQuestions.forEach((questionItem) => {
+    let currentModule = '';
+    for (let i = 0; i < moduleHeadings.length; i += 1) {
+      const pos = moduleHeadings[i].el.compareDocumentPosition(questionItem);
+      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) {
+        currentModule = moduleHeadings[i].moduleName;
+      } else {
+        break;
+      }
+    }
+    questionItem.setAttribute('data-wrongbook-module', currentModule || '其他');
+
+    if (currentModule && allQuestionRateStats[currentModule]) {
+      const rateEl = questionItem.querySelector('.overall-item-value.correct-rate');
+      const rateText = (rateEl?.textContent || '').trim();
+      const match = rateText.match(/(\d+(?:\.\d+)?)/);
+      if (match) {
+        const rate = parseFloat(match[1]);
+        if (!Number.isNaN(rate)) {
+          allQuestionRateStats[currentModule].total += 1;
+          if (rate >= 80) {
+            allQuestionRateStats[currentModule].ge80 += 1;
+          } else if (rate >= 60) {
+            allQuestionRateStats[currentModule].mid60to80 += 1;
+          } else {
+            allQuestionRateStats[currentModule].lt60 += 1;
+          }
+        }
+      }
+    }
+  });
+
   let wrongCount = 0;
   let wrongbookQuestionIndex = 0;
   allQuestions.forEach((questionItem) => {
@@ -324,7 +412,9 @@ function extractWrongQuestionsAndOpenTab() {
       transform: translate(-50%, 100%);
       z-index: 99997;
       width: min(960px, calc(100vw - 24px));
-      max-height: 42vh;
+      max-height: 60vh;
+      display: flex;
+      flex-direction: column;
       border: 1px solid var(--color-border-section, #dfe3ec);
       border-radius: 12px 12px 0 0;
       background: var(--color-bg-section, #ffffff);
@@ -336,14 +426,49 @@ function extractWrongQuestionsAndOpenTab() {
       transform: translate(-50%, 0);
     }
     .wrongbook-answer-card-header {
-      height: 46px;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
-      padding: 0 14px;
+      gap: 12px;
+      padding: 10px 14px;
       border-bottom: 1px solid var(--color-border-section, #dfe3ec);
       color: var(--color-text-primary, #1f2430);
       font-size: 14px;
+      flex-shrink: 0;
+    }
+    .wrongbook-answer-card-header-left {
+      display: flex;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      min-width: 0;
+    }
+    .wrongbook-card-title {
+      font-weight: 700;
+      line-height: 28px;
+      white-space: nowrap;
+    }
+    .wrongbook-rate-table {
+      border-collapse: collapse;
+      font-size: 12px;
+      color: var(--color-text-primary, #1f2430);
+      background: var(--color-bg-section, #ffffff);
+    }
+    .wrongbook-rate-table th,
+    .wrongbook-rate-table td {
+      border: 1px solid var(--color-border-section, #dfe3ec);
+      padding: 3px 10px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .wrongbook-rate-table th {
+      background: var(--color-bg-body, #f6f8fb);
+      font-weight: 700;
+      color: var(--color-text-secondary, #5a6275);
+    }
+    .wrongbook-rate-table td:first-child {
+      text-align: left;
+      font-weight: 700;
     }
     .wrongbook-answer-card-close {
       border: 1px solid var(--color-border-section, #dfe3ec);
@@ -353,14 +478,34 @@ function extractWrongQuestionsAndOpenTab() {
       border-radius: 6px;
       padding: 0 10px;
       cursor: pointer;
+      flex-shrink: 0;
     }
     .wrongbook-answer-card-list {
       padding: 12px 14px 16px;
       overflow: auto;
-      max-height: calc(42vh - 46px);
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .wrongbook-module-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .wrongbook-module-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-text-primary, #1f2430);
+      padding-left: 8px;
+      border-left: 3px solid var(--color-text-blue, #2e62f5);
+      line-height: 1.3;
+    }
+    .wrongbook-module-chips {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
     }
     .wrongbook-answer-chip {
       width: 46px;
@@ -397,12 +542,54 @@ function extractWrongQuestionsAndOpenTab() {
         return;
       }
 
-      const numbers = questionItems.map((item, idx) => {
+      const questionEntries = questionItems.map((item, idx) => {
         const no = item.getAttribute("data-wrongbook-qno") || String(idx + 1);
+        const mod = item.getAttribute("data-wrongbook-module") || "其他";
         if (!item.id) {
           item.id = "wrongbook-q-" + no;
         }
-        return no;
+        return { no: no, mod: mod };
+      });
+
+      const rateStats = ${JSON.stringify(allQuestionRateStats)};
+      const targetModules = ["言语理解与表达", "判断推理", "资料分析"];
+      const rateTableRows = targetModules
+        .map((modName) => {
+          const s = rateStats[modName] || { ge80: 0, mid60to80: 0, lt60: 0, total: 0 };
+          return (
+            "<tr>" +
+            "<td>" + modName + "</td>" +
+            "<td>" + s.ge80 + "</td>" +
+            "<td>" + s.mid60to80 + "</td>" +
+            "<td>" + s.lt60 + "</td>" +
+            "<td>" + s.total + "</td>" +
+            "</tr>"
+          );
+        })
+        .join("");
+
+      const rateTableHtml =
+        '<table class="wrongbook-rate-table">' +
+        '  <thead>' +
+        '    <tr>' +
+        '      <th>模块（全部题目）</th>' +
+        '      <th>≥80%</th>' +
+        '      <th>60-80%</th>' +
+        '      <th>&lt;60%</th>' +
+        '      <th>合计</th>' +
+        '    </tr>' +
+        '  </thead>' +
+        '  <tbody>' + rateTableRows + '</tbody>' +
+        '</table>';
+
+      const moduleGroups = [];
+      const moduleGroupMap = {};
+      questionEntries.forEach((entry) => {
+        if (!moduleGroupMap[entry.mod]) {
+          moduleGroupMap[entry.mod] = [];
+          moduleGroups.push({ name: entry.mod, items: moduleGroupMap[entry.mod] });
+        }
+        moduleGroupMap[entry.mod].push(entry.no);
       });
 
       const toggle = document.createElement("button");
@@ -416,14 +603,27 @@ function extractWrongQuestionsAndOpenTab() {
       const header = document.createElement("div");
       header.className = "wrongbook-answer-card-header";
       header.innerHTML =
-        '<span>快速定位（共 ' + numbers.length + ' 题）</span>' +
+        '<div class="wrongbook-answer-card-header-left">' +
+        '  <span class="wrongbook-card-title">快速定位（共 ' + questionEntries.length + ' 题）</span>' +
+        rateTableHtml +
+        '</div>' +
         '<button type="button" class="wrongbook-answer-card-close">收起</button>';
 
       const list = document.createElement("div");
       list.className = "wrongbook-answer-card-list";
-      list.innerHTML = numbers
-        .map((no) => {
-          return '<button type="button" class="wrongbook-answer-chip" data-qno="' + no + '">' + no + '</button>';
+      list.innerHTML = moduleGroups
+        .map((group) => {
+          const chipsHtml = group.items
+            .map((no) => {
+              return '<button type="button" class="wrongbook-answer-chip" data-qno="' + no + '">' + no + '</button>';
+            })
+            .join("");
+          return (
+            '<div class="wrongbook-module-group">' +
+            '  <div class="wrongbook-module-title">' + group.name + '（' + group.items.length + ' 题）</div>' +
+            '  <div class="wrongbook-module-chips">' + chipsHtml + '</div>' +
+            '</div>'
+          );
         })
         .join("");
 
